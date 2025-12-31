@@ -10,13 +10,17 @@ Convert the existing HTML prototype of "Sapar Haemek" into a high-performance, i
 - **Styling**: Tailwind CSS
 - **Icons**: Lucide React
 - **PWA**: vite-plugin-pwa
-- **Routing**: React Router DOM (Planned)
+- **Routing**: React Router DOM
+- **Backend**: Firebase (Firestore)
+- **Deployment**: Firebase Hosting
 
 ## Key Features
 - **Modern UI**: Glassmorphism, animations, dark mode aesthetic.
 - **Functionality**:
-    - Booking system (mock)
-    - Shop functionality (mock)
-    - Online courses (mock)
-    - Barber profiles
+    - Booking system (Integrated with Firestore)
+    - Barber Management (Admin Dashboard)
+    - Shop functionality (Mock)
+    - Online courses (Mock)
+    - Dynamic Barber profiles & Customer Gallery
 - **Performance**: Optimized for mobile, offline capabilities via Service Worker.
+- **Admin Dashboard**: Comprehensive management interface for schedule, services, barbers, and appointments.
