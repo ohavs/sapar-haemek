@@ -1,4 +1,4 @@
-import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, orderBy, updateDoc, addDoc } from 'firebase/firestore';
+import { collection, doc, getDocs, setDoc, deleteDoc, onSnapshot, query, updateDoc, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { BARBERS as INITIAL_BARBERS } from '../data';
 

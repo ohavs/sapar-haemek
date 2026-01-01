@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { PRODUCTS } from '../data';
-import { Calendar, Package, Clock, LogOut, Trash2, Plus, BarChart3, ChevronRight, Settings, AlertCircle, ChevronDown, Check, Phone, Sun, Moon, Scissors, User, Edit2, X, Camera } from 'lucide-react';
+import { Calendar, Package, Clock, LogOut, Trash2, Plus, BarChart3, ChevronRight, Settings, AlertCircle, ChevronDown, Check, Phone, Sun, Moon, Scissors, User, Edit2, X, Camera, Lock, Image as ImageIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { CustomDatePicker } from '../components/ui/CustomDatePicker';
 import { Modal } from '../components/ui/Modal';
 import type { Booking, BlockedDate } from '../services/booking';
-import type { AdminSettings, WeeklySchedule, Service } from '../services/settings';
-import { getAdminSettings, updateAdminSettings, subscribeToSettings, getScheduleSettings, updateScheduleSettings, subscribeToSchedule, getServices, addService, deleteService, updateService } from '../services/settings';
+import type { AdminSettings, WeeklySchedule, Service, GalleryImage } from '../services/settings';
+import { getAdminSettings, updateAdminSettings, subscribeToSettings, getScheduleSettings, updateScheduleSettings, subscribeToSchedule, getServices, addService, deleteService, updateService, subscribeToGallery, addGalleryImage, deleteGalleryImage, updateGalleryImage } from '../services/settings';
 import { blockDate as blockDateService, getBlockedDates, deleteBlockedDate, subscribeToFutureBookings, deleteBooking, updateBooking, checkSlotAvailability } from '../services/booking';
 import { subscribeToBarbers, updateBarber, addBarber, deleteBarber, type Barber } from '../services/barbers';
 
@@ -16,7 +16,9 @@ const TABS = [
     { id: 'services', label: 'טיפולים', icon: Scissors },
     { id: 'appointments', label: 'תורים', icon: Calendar },
     { id: 'products', label: 'מוצרים', icon: Package },
+    { id: 'gallery', label: 'גלריה', icon: ImageIcon },
     { id: 'reports', label: 'דוחות', icon: BarChart3 },
+    { id: 'general', label: 'הגדרות', icon: Lock },
 ];
 
 // No MOCK needed
@@ -139,16 +141,23 @@ export const Admin: React.FC = () => {
         return () => unsub();
     }, []);
 
-    // Auth & General Settings State
-    const [isAuthenticated, setIsAuthenticated] = useState(true); // Always authenticated per user request
-    const [password, setPassword] = useState('');
-    const [error, setError] = useState('');
+
     const [settings, setSettings] = useState<AdminSettings>({ adminPassword: '123', vacationMode: false });
     const [showPasswordChange, setShowPasswordChange] = useState(false);
     const [newPassword, setNewPassword] = useState('');
 
     // Blocked Dates State
     const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
+    const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+
+    useEffect(() => {
+        const unsubGallery = subscribeToGallery(setGalleryImages);
+        return () => unsubGallery();
+    }, []);
+
+    // Gallery Editing State
+    const [editingImageId, setEditingImageId] = useState<string | null>(null);
+    const [imageTag, setImageTag] = useState('');
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [isBlocking, setIsBlocking] = useState(false);
     const [blockBarberId, setBlockBarberId] = useState<string>('all');
@@ -370,34 +379,28 @@ export const Admin: React.FC = () => {
         });
     };
 
-    const handleLogin = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (password === settings.adminPassword) {
-            setIsAuthenticated(true);
-            localStorage.setItem('sapar_admin_auth', 'true');
-            setError('');
-        } else {
-            setError('סיסמה שגויה');
-        }
-    };
 
-    // Auto-check auth on focus (useful if multiple tabs)
+    const [error, setError] = useState('');
+
+    // Strict Auth Check on Mount
     useEffect(() => {
         const checkAuth = () => {
-            if (localStorage.getItem('sapar_admin_auth') === 'true') {
-                setIsAuthenticated(true);
+            const auth = localStorage.getItem('sapar_admin_auth');
+            if (auth !== 'true') {
+                navigate('/');
             }
         };
-        window.addEventListener('focus', checkAuth);
-        return () => window.removeEventListener('focus', checkAuth);
-    }, []);
+        checkAuth();
+        // Also listen for storage events in case they log out in another tab
+        window.addEventListener('storage', checkAuth);
+        return () => window.removeEventListener('storage', checkAuth);
+    }, [navigate]);
 
     const handleExit = () => {
         navigate('/');
     };
 
     const handleLogout = () => {
-        setIsAuthenticated(false);
         localStorage.removeItem('sapar_admin_auth');
         navigate('/');
     };
@@ -415,10 +418,14 @@ export const Admin: React.FC = () => {
             setSettings(prev => ({ ...prev, adminPassword: newPassword }));
             setNewPassword('');
             setShowPasswordChange(false);
-            // Reusing error state for success temporarily or could add new state
-            // Better to just clear error
             setError('');
-            // In a real app we'd show a toast here
+            setModalConfig({
+                isOpen: true,
+                title: 'הצלחה',
+                text: 'הסיסמה שונתה בהצלחה',
+                type: 'success',
+                showConfirmButton: false
+            });
         } catch (e) {
             setError('שגיאה בשינוי סיסמה');
         }
@@ -520,17 +527,29 @@ export const Admin: React.FC = () => {
         }
     };
 
-    const handleDeleteBarber = (id: string, name: string) => {
-        setModalConfig({
-            isOpen: true,
-            title: 'מחיקת ספר',
-            text: `האם אתה בטוח שברצונך למחוק את ${name}?`,
-            type: 'warning',
-            showConfirmButton: true,
-            onConfirm: async () => {
-                await deleteBarber(id);
-            }
-        });
+    const [barberToDelete, setBarberToDelete] = useState<{ id: string, name: string } | null>(null);
+    const [deletePassword, setDeletePassword] = useState('');
+
+    const handleDeleteBarberClick = (id: string, name: string) => {
+        setBarberToDelete({ id, name });
+        setDeletePassword('');
+    };
+
+    const confirmDeleteBarber = async () => {
+        if (!barberToDelete) return;
+
+        if (deletePassword !== settings.adminPassword) {
+            alert('סיסמה שגויה');
+            return;
+        }
+
+        try {
+            await deleteBarber(barberToDelete.id);
+            setBarberToDelete(null);
+            setDeletePassword('');
+        } catch (e) {
+            alert('שגיאה במחיקת ספר');
+        }
     };
 
     const handleImageUpload = async (barberId: string | number, file?: File) => {
@@ -550,11 +569,32 @@ export const Admin: React.FC = () => {
         reader.readAsDataURL(file);
     };
 
+    const handleGalleryUpload = async (file?: File) => {
+        if (!file) return;
+        if (file.size > 750000) { // 750KB limit (safety for Base64 overhead < 1MB Firestore limit)
+            alert('התמונה גדולה מדי. מקסימום 750KB');
+            return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+            try {
+                const base64 = reader.result as string;
+                await addGalleryImage(base64);
+                // Simple success handling (subscription will update UI)
+            } catch (error) {
+                console.error("Gallery upload error:", error);
+                alert('אירעה שגיאה בהעלאת התמונה. נסה שנית או הקטן את הקובץ.');
+            }
+        };
+        reader.readAsDataURL(file);
+    };
+
     const renderContent = () => {
         switch (activeTab) {
             case 'schedule':
                 return (
-                    <div className="space-y-8 animate-fade-in pb-10">
+                    <div className="space-y-8 animate-fade-in pb-10 max-w-3xl mx-auto">
                         {/* Barber Selector */}
                         <div className="flex gap-4 overflow-x-auto pb-4 no-scrollbar items-center">
                             {barbers.map(barber => (
@@ -582,7 +622,7 @@ export const Admin: React.FC = () => {
                                             <Edit2 className="w-3 h-3" />
                                         </button>
                                         <button
-                                            onClick={(e) => { e.stopPropagation(); handleDeleteBarber(barber.id.toString(), barber.name); }}
+                                            onClick={(e) => { e.stopPropagation(); handleDeleteBarberClick(barber.id.toString(), barber.name); }}
                                             className="p-1.5 bg-red-500 text-white rounded-full shadow-lg hover:scale-110 transition-transform"
                                         >
                                             <Trash2 className="w-3 h-3" />
@@ -604,12 +644,15 @@ export const Admin: React.FC = () => {
                             {/* Add Button */}
                             <button
                                 onClick={() => handleOpenBarberModal(null)}
-                                className="flex flex-col items-center justify-center gap-2 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all min-w-[100px] shrink-0 group"
+                                className="flex items-center gap-3 px-6 py-4 rounded-2xl bg-white/5 border border-white/10 hover:bg-white/10 transition-all min-w-max shrink-0 group"
                             >
                                 <div className="w-10 h-10 rounded-full bg-emerald-500/10 flex items-center justify-center group-hover:bg-emerald-500/20 transition-colors">
                                     <Plus className="w-5 h-5 text-emerald-400" />
                                 </div>
-                                <span className="text-sm font-bold text-gray-400 group-hover:text-white">הוסף ספר</span>
+                                <div className="text-right">
+                                    <div className="font-bold text-gray-400 group-hover:text-white">הוסף ספר</div>
+                                    <div className="text-xs opacity-0">...</div>
+                                </div>
                             </button>
                         </div>
 
@@ -629,23 +672,28 @@ export const Admin: React.FC = () => {
 
                                     return (
                                         <div key={dayIndex} className={`flex flex-col md:flex-row md:items-center justify-between p-4 rounded-2xl border transition-all ${isOpen ? 'bg-white/5 border-white/5' : 'bg-white/2 border-transparent opacity-50'}`}>
-                                            <div className="flex items-center justify-between mb-4 md:mb-0 md:gap-6">
+                                            <div className="flex items-center justify-between mb-4 md:mb-0 md:gap-6 w-full md:w-auto">
+                                                <span className="font-bold text-lg min-w-[60px] text-right">{dayName}</span>
                                                 <button
                                                     onClick={() => toggleDay(dayIndex)}
                                                     className={`w-12 h-7 rounded-full relative transition-colors ${isOpen ? 'bg-emerald-500' : 'bg-white/10'}`}
                                                 >
-                                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${isOpen ? 'right-1' : 'right-6'}`}></div>
+                                                    <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-all shadow-md ${isOpen ? 'left-1' : 'left-6'}`}></div>
                                                 </button>
-                                                <span className="font-bold text-lg min-w-[60px]">{dayName}</span>
                                             </div>
 
-                                            <div className="flex items-center gap-4 justify-end" dir="ltr">
+                                            <div className="flex items-center gap-4 justify-end w-full md:w-auto">
                                                 {isOpen ? (
-                                                    <>
-                                                        <TimePicker time={dayConfig.start} onChange={(t) => updateDayTime(dayIndex, 'start', t)} />
-                                                        <span className="text-gray-500">-</span>
-                                                        <TimePicker time={dayConfig.end} onChange={(t) => updateDayTime(dayIndex, 'end', t)} />
-                                                    </>
+                                                    <div className="flex gap-4 items-center w-full md:w-auto">
+                                                        <div>
+                                                            <span className="text-xs text-gray-500 mb-1 block">משעה</span>
+                                                            <TimePicker time={dayConfig.start} onChange={(t) => updateDayTime(dayIndex, 'start', t)} />
+                                                        </div>
+                                                        <div>
+                                                            <span className="text-xs text-gray-500 mb-1 block">עד שעה</span>
+                                                            <TimePicker time={dayConfig.end} onChange={(t) => updateDayTime(dayIndex, 'end', t)} />
+                                                        </div>
+                                                    </div>
                                                 ) : (
                                                     <span className="text-gray-500 font-mono tracking-widest uppercase">Closed</span>
                                                 )}
@@ -686,11 +734,16 @@ export const Admin: React.FC = () => {
                                     </div>
 
                                     {/* Add Input */}
-                                    <div className="flex flex-col md:flex-row gap-2 items-end md:items-center" dir="ltr">
-                                        <div className="flex gap-2 items-center w-full md:w-auto">
-                                            <TimePicker time={newBreakStart} onChange={setNewBreakStart} />
-                                            <span className="text-gray-500">-</span>
-                                            <TimePicker time={newBreakEnd} onChange={setNewBreakEnd} />
+                                    <div className="flex flex-col md:flex-row gap-2 items-end md:items-center">
+                                        <div className="flex gap-4 items-center w-full md:w-auto">
+                                            <div>
+                                                <span className="text-xs text-gray-500 mb-1 block">משעה</span>
+                                                <TimePicker time={newBreakStart} onChange={setNewBreakStart} />
+                                            </div>
+                                            <div>
+                                                <span className="text-xs text-gray-500 mb-1 block">עד שעה</span>
+                                                <TimePicker time={newBreakEnd} onChange={setNewBreakEnd} />
+                                            </div>
                                         </div>
 
                                         <div className="w-full md:w-40 ml-auto md:ml-0" dir="rtl">
@@ -886,7 +939,7 @@ export const Admin: React.FC = () => {
                 );
             case 'services':
                 return (
-                    <div className="space-y-6 animate-fade-in pb-10">
+                    <div className="space-y-6 animate-fade-in pb-10 max-w-3xl mx-auto">
                         <div className="flex justify-between items-center">
                             <h3 className="text-xl font-bold">ניהול טיפולים</h3>
                         </div>
@@ -993,6 +1046,9 @@ export const Admin: React.FC = () => {
                                                     ₪{service.price}
                                                 </span>
                                             </div>
+                                            {service.note && (
+                                                <p className="text-xs text-gray-500 italic mt-1 max-w-[200px] truncate">{service.note}</p>
+                                            )}
                                         </div>
                                     </div>
                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1017,9 +1073,9 @@ export const Admin: React.FC = () => {
                         </div>
                     </div>
                 );
-            case 'settings':
+            case 'general':
                 return (
-                    <div className="space-y-6 animate-fade-in pb-10">
+                    <div className="space-y-6 animate-fade-in pb-10 max-w-3xl mx-auto">
                         {/* Global Status Card */}
                         <div className="glass-panel p-6 rounded-3xl relative overflow-hidden">
                             <div className="flex justify-between items-start mb-4">
@@ -1064,6 +1120,7 @@ export const Admin: React.FC = () => {
                                     >
                                         שמור סיסמה חדשה
                                     </button>
+                                    {error && <p className="text-red-500 text-sm text-center">{error}</p>}
                                 </div>
                             )}
                         </div>
@@ -1071,7 +1128,7 @@ export const Admin: React.FC = () => {
                 );
             case 'appointments':
                 return (
-                    <div className="space-y-4 animate-fade-in pb-10">
+                    <div className="space-y-4 animate-fade-in pb-10 max-w-3xl mx-auto">
                         <div className="flex justify-between items-center mb-2">
                             <h3 className="text-xl font-bold">תורים להיום</h3>
                             <span className="bg-emerald-500/20 text-emerald-400 px-3 py-1 rounded-full text-xs font-bold">
@@ -1149,7 +1206,7 @@ export const Admin: React.FC = () => {
                 );
             case 'products':
                 return (
-                    <div className="space-y-6 animate-fade-in">
+                    <div className="space-y-6 animate-fade-in pb-10 max-w-3xl mx-auto">
                         <div className="flex justify-between items-center">
                             <h3 className="text-xl font-bold">ניהול מלאי</h3>
                             <button className="bg-emerald-500 text-black px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-sm hover:bg-emerald-400 transition-colors">
@@ -1177,6 +1234,106 @@ export const Admin: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
+                        </div>
+                    </div>
+                );
+
+
+            case 'gallery':
+                return (
+                    <div className="space-y-6 animate-fade-in pb-10 max-w-3xl mx-auto">
+                        <div className="flex justify-between items-center">
+                            <h3 className="text-xl font-bold">ניהול גלריה</h3>
+                            <label className="bg-emerald-500 text-black px-4 py-2 rounded-xl flex items-center gap-2 font-bold text-sm hover:bg-emerald-400 transition-colors cursor-pointer shadow-lg shadow-emerald-500/20">
+                                <Plus className="w-5 h-5" />
+                                הוסף תמונה
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={(e) => handleGalleryUpload(e.target.files?.[0])}
+                                />
+                            </label>
+                        </div>
+
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            {galleryImages.map(img => (
+                                <div key={img.id} className="relative group rounded-2xl overflow-hidden aspect-[3/4] border border-white/10 bg-white/5">
+                                    <img src={img.url} alt="Gallery" className="w-full h-full object-cover" />
+
+                                    {/* Overlay */}
+                                    <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 p-4">
+                                        {editingImageId === img.id ? (
+                                            <div className="flex flex-col gap-2 w-full animate-fade-in" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="text"
+                                                    value={imageTag}
+                                                    onChange={(e) => setImageTag(e.target.value)}
+                                                    placeholder="תגית (לדוגמה: תספורת אופנתית)"
+                                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-2 py-1 text-sm text-white focus:border-emerald-500 outline-none text-center"
+                                                    autoFocus
+                                                />
+                                                <div className="flex gap-2 justify-center">
+                                                    <button
+                                                        onClick={() => {
+                                                            if (img.id) updateGalleryImage(img.id, { tag: imageTag });
+                                                            setEditingImageId(null);
+                                                        }}
+                                                        className="p-2 bg-emerald-500 text-black rounded-lg hover:bg-emerald-400"
+                                                    >
+                                                        <Check className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => setEditingImageId(null)}
+                                                        className="p-2 bg-white/10 text-white rounded-lg hover:bg-white/20"
+                                                    >
+                                                        <X className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                {img.tag && (
+                                                    <span className="bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded text-xs font-bold mb-2">
+                                                        {img.tag}
+                                                    </span>
+                                                )}
+                                                <div className="flex gap-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            setEditingImageId(img.id || null);
+                                                            setImageTag(img.tag || '');
+                                                        }}
+                                                        className="p-3 bg-blue-500 text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                                                    >
+                                                        <Edit2 className="w-5 h-5" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            setModalConfig({
+                                                                isOpen: true,
+                                                                title: 'מחיקת תמונה',
+                                                                text: 'האם אתה בטוח שברצונך למחוק תמונה זו מהגלריה?',
+                                                                type: 'warning',
+                                                                showConfirmButton: true,
+                                                                onConfirm: () => img.id && deleteGalleryImage(img.id)
+                                                            });
+                                                        }}
+                                                        className="p-3 bg-red-500 text-white rounded-full shadow-lg hover:scale-110 transition-transform"
+                                                    >
+                                                        <Trash2 className="w-5 h-5" />
+                                                    </button>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                            {galleryImages.length === 0 && (
+                                <div className="col-span-full py-10 text-center text-gray-500">
+                                    אין תמונות בגלריה
+                                </div>
+                            )}
                         </div>
                     </div>
                 );
@@ -1213,48 +1370,10 @@ export const Admin: React.FC = () => {
         }
     };
 
-    if (!isAuthenticated) {
-        return (
-            <div className="min-h-screen bg-black flex items-center justify-center p-6 bg-[url('https://images.unsplash.com/photo-1585747860715-2ba37e788b70?auto=format&fit=crop&q=80')] bg-cover bg-center">
-                <div className="absolute inset-0 bg-black/80 backdrop-blur-sm"></div>
 
-                <div className="relative glass-panel p-8 rounded-3xl w-full max-w-md text-center">
-                    <div className="w-20 h-20 bg-emerald-500/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-emerald-500/30">
-                        <Settings className="w-10 h-10 text-emerald-500 animate-spin-slow" />
-                    </div>
-
-                    <h2 className="text-3xl font-black text-white mb-2">ניהול המספרה</h2>
-                    <p className="text-gray-400 mb-8">אנא הזן סיסמה להתחברות</p>
-
-                    <form onSubmit={handleLogin} className="space-y-4">
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="סיסמה"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white text-center text-lg focus:outline-none focus:border-emerald-500 transition-colors"
-                        />
-                        {error && (
-                            <div className="bg-red-500/20 border border-red-500/50 text-red-400 px-4 py-3 rounded-xl text-center text-sm font-bold flex items-center justify-center gap-2 animate-shake">
-                                <AlertCircle className="w-4 h-4" />
-                                {error}
-                            </div>
-                        )}
-
-                        <button
-                            type="submit"
-                            className="w-full bg-emerald-500 hover:bg-emerald-400 text-black font-black py-4 rounded-xl text-lg transition-all shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:shadow-[0_0_30px_rgba(16,185,129,0.5)]"
-                        >
-                            כניסה
-                        </button>
-                    </form>
-                </div>
-            </div>
-        );
-    }
 
     return (
-        <div className="min-h-screen bg-black text-white pb-24">
+        <div className="min-h-screen bg-black text-white pb-24 pt-14">
             <Modal
                 isOpen={modalConfig.isOpen}
                 onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
@@ -1361,7 +1480,7 @@ export const Admin: React.FC = () => {
 
             {/* Header */}
             {/* Header */}
-            <div className="sticky top-0 z-20 glass-nav px-6 py-4 flex justify-between items-center">
+            <div className="z-20 px-6 py-4 flex justify-between items-center">
                 <h1 className="text-xl font-black">ניהול</h1>
                 <div className="flex gap-2">
                     <button onClick={handleExit} className="p-2 bg-white/5 rounded-xl hover:bg-white/10 transition-colors text-gray-300" title="יציאה לדף הבית">
@@ -1373,23 +1492,32 @@ export const Admin: React.FC = () => {
                 </div>
             </div>
 
-            {/* Tabs */}
-            <div className="grid grid-cols-4 gap-2 px-4 py-6">
-                {TABS.map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex flex-col items-center justify-center gap-2 p-3 rounded-2xl transition-all ${activeTab === tab.id
-                            ? 'bg-emerald-500 text-black shadow-lg shadow-emerald-500/20 scale-105'
-                            : 'bg-white/5 text-gray-400 hover:bg-white/10'
-                            }`}
-                    >
-                        <tab.icon className="w-6 h-6" />
-                        <span className="text-[10px] font-bold">{tab.label}</span>
-                    </button>
-                ))}
+            {/* Navigation Tabs - Floating Pill Style */}
+            <div className="fixed bottom-8 left-1/2 transform -translate-x-1/2 z-50 w-auto max-w-[95vw]">
+                <div className="glass-nav rounded-full px-2 py-2 flex items-center justify-between gap-1 sm:gap-2 overflow-x-auto no-scrollbar shadow-[0_8px_32px_rgba(0,0,0,0.5)] border border-white/10 backdrop-blur-xl bg-black/60">
+                    {TABS.map(tab => {
+                        const isActive = activeTab === tab.id;
+                        return (
+                            <button
+                                key={tab.id}
+                                onClick={() => setActiveTab(tab.id)}
+                                className={`relative group flex flex-col items-center justify-center p-3 sm:px-4 rounded-full transition-all duration-300 min-w-[60px] sm:min-w-[70px] ${isActive
+                                    ? 'bg-emerald-500 text-black shadow-[0_0_15px_rgba(16,185,129,0.5)] scale-105'
+                                    : 'text-gray-400 hover:text-white hover:bg-white/5'
+                                    }`}
+                            >
+                                <tab.icon
+                                    className={`w-5 h-5 sm:w-6 sm:h-6 mb-0.5 transition-transform duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}
+                                    strokeWidth={isActive ? 2.5 : 2}
+                                />
+                                <span className={`text-[9px] sm:text-[10px] font-bold leading-none ${isActive ? 'text-black' : 'text-gray-400 group-hover:text-white'}`}>
+                                    {tab.label}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
             </div>
-
             {/* Content */}
             <div className="px-6 space-y-6">
                 {renderContent()}
@@ -1439,6 +1567,53 @@ export const Admin: React.FC = () => {
                     </div>
                 </div>
             )}
+
+            {/* Delete Barber Confirmation Modal */}
+            {barberToDelete && (
+                <div className="fixed inset-0 z-[60] flex items-center justify-center p-6 animate-fade-in">
+                    <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setBarberToDelete(null)}></div>
+                    <div className="glass-panel p-8 rounded-3xl w-full max-w-sm relative z-10 text-center">
+                        <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
+                            <AlertCircle className="w-8 h-8" />
+                        </div>
+                        <h3 className="text-xl font-bold mb-2">מחיקת ספר</h3>
+                        <p className="text-gray-400 mb-6">האם אתה בטוח שברצונך למחוק את {barberToDelete.name}? פעולה זו אינה הפיכה.</p>
+
+                        <input
+                            type="password"
+                            placeholder="סיסמת ניהול לאישור"
+                            value={deletePassword}
+                            onChange={(e) => setDeletePassword(e.target.value)}
+                            className="w-full bg-black/50 border border-white/10 rounded-xl px-4 py-3 text-white text-center mb-6 focus:outline-none focus:border-red-500"
+                        />
+
+                        <div className="flex gap-3">
+                            <button
+                                onClick={confirmDeleteBarber}
+                                className="flex-1 bg-red-500 text-white font-bold py-3 rounded-xl hover:bg-red-600 transition-colors"
+                            >
+                                מחק
+                            </button>
+                            <button
+                                onClick={() => setBarberToDelete(null)}
+                                className="flex-1 bg-white/10 text-white font-bold py-3 rounded-xl hover:bg-white/20 transition-colors"
+                            >
+                                ביטול
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <Modal
+                isOpen={modalConfig.isOpen}
+                onClose={() => setModalConfig({ ...modalConfig, isOpen: false })}
+                title={modalConfig.title}
+                text={modalConfig.text}
+                type={modalConfig.type}
+                showConfirmButton={modalConfig.showConfirmButton}
+                onConfirm={modalConfig.onConfirm}
+            />
         </div>
     );
 };

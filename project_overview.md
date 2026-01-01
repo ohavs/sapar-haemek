@@ -19,8 +19,10 @@ Convert the existing HTML prototype of "Sapar Haemek" into a high-performance, i
 - **Functionality**:
     - Booking system (Integrated with Firestore)
     - Barber Management (Admin Dashboard)
+    - Gallery Management (Upload, Tagging, Reordering)
+    - Service Management with flexible Pricing/Duration/Notes
     - Shop functionality (Mock)
     - Online courses (Mock)
-    - Dynamic Barber profiles & Customer Gallery
+    - Dynamic Barber profiles
 - **Performance**: Optimized for mobile, offline capabilities via Service Worker.
 - **Admin Dashboard**: Comprehensive management interface for schedule, services, barbers, and appointments.

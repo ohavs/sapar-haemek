@@ -12,7 +12,7 @@ export const BarberCard: React.FC<BarberCardProps> = ({ barber, onClick }) => (
         onClick={() => onClick(barber)}
         className="relative group overflow-hidden rounded-[2.5rem] h-80 bg-gray-900 cursor-pointer transition-all duration-500 hover:scale-[1.02] active:scale-95 border border-white/5"
     >
-        <img src={barber.image} alt={barber.name} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700 grayscale group-hover:grayscale-0" />
+        <img src={barber.image} alt={barber.name} className="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-700 grayscale-0 md:grayscale group-hover:grayscale-0" />
         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/40 to-transparent opacity-90"></div>
 
         <div className="absolute bottom-0 p-6 w-full transform translate-y-2 group-hover:translate-y-0 transition-transform duration-500">

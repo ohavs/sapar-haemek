@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, AlertCircle, X } from 'lucide-react';
+import { Check, AlertCircle } from 'lucide-react';
 
 interface ModalProps {
     isOpen: boolean;
@@ -68,8 +68,8 @@ export const Modal: React.FC<ModalProps> = ({
                     <button
                         onClick={onClose}
                         className={`flex-1 font-bold py-3 rounded-xl transition-colors ${showConfirmButton
-                                ? 'bg-white/10 text-white hover:bg-white/20'
-                                : 'bg-white text-black hover:bg-gray-200'
+                            ? 'bg-white/10 text-white hover:bg-white/20'
+                            : 'bg-white text-black hover:bg-gray-200'
                             }`}
                     >
                         {showConfirmButton ? cancelText : confirmText}

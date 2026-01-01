@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.1.0] - 2026-01-01
+### Added
+- **Gallery System Enhanced**:
+    - **Tagging**: Admin can now add custom tags/descriptions to gallery images (default: "New Style").
+    - **Delete Confirmation**: Added safety modal before deleting images.
+    - **Edit Mode**: Inline editing for image tags in Admin.
+- **Service Management**:
+    - **Notes Display**: Added visibility for service notes (הערות) in the Admin services list.
+
+### Changed
+- **Admin UI Polish**:
+    - **Spacing**: Increased top padding for better visual hierarchy.
+    - **Header**: Removed glass effect from Admin header for a cleaner, spacious look.
+- **Mobile UX**:
+    - **Barber Cards**: Team images are now colorful by default on mobile for better engagement.
+
 ## [1.0.0] - 2025-12-31
 ### Added
 - **Barber Management System**: 

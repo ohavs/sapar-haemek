@@ -122,3 +122,42 @@ export const subscribeToServices = (callback: (services: Service[]) => void) => 
         callback(services);
     });
 };
+
+// --- Gallery Management ---
+
+export interface GalleryImage {
+    id?: string;
+    url: string; // Base64 or URL
+    createdAt: number;
+    tag?: string;
+}
+
+const COLLECTION_GALLERY = 'gallery';
+
+export const getGalleryImages = async (): Promise<GalleryImage[]> => {
+    const s = await getDocs(collection(db, COLLECTION_GALLERY));
+    const images = s.docs.map(d => ({ id: d.id, ...d.data() } as GalleryImage));
+    return images.sort((a, b) => b.createdAt - a.createdAt);
+};
+
+export const addGalleryImage = async (url: string) => {
+    await addDoc(collection(db, COLLECTION_GALLERY), {
+        url,
+        createdAt: Date.now()
+    });
+};
+
+export const updateGalleryImage = async (id: string, data: Partial<GalleryImage>) => {
+    await setDoc(doc(db, COLLECTION_GALLERY, id), data, { merge: true });
+};
+
+export const deleteGalleryImage = async (id: string) => {
+    await deleteDoc(doc(db, COLLECTION_GALLERY, id));
+};
+
+export const subscribeToGallery = (callback: (images: GalleryImage[]) => void) => {
+    return onSnapshot(collection(db, COLLECTION_GALLERY), (snapshot) => {
+        const images = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as GalleryImage));
+        callback(images.sort((a, b) => b.createdAt - a.createdAt));
+    });
+};

@@ -317,3 +317,13 @@ export const updateBooking = async (id: string, updates: Partial<Booking>) => {
     }
     await setDoc(bookingRef, dataToUpdate, { merge: true });
 };
+
+export const updateUserPreference = async (phone: string, updates: { notificationTime?: number }) => {
+    try {
+        const userRef = doc(db, COLLECTION_USERS, phone);
+        await setDoc(userRef, updates, { merge: true });
+    } catch (error) {
+        console.error("Error updating user preference:", error);
+        throw error;
+    }
+};

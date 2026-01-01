@@ -60,6 +60,7 @@ export const Home: React.FC = () => {
     const [blockedDates, setBlockedDates] = useState<BlockedDate[]>([]);
     const [existingBookings, setExistingBookings] = useState<Booking[]>([]); // Changed from takenTimes to full bookings
     const [vacationMode, setVacationMode] = useState(false);
+    const [showVacationMessage, setShowVacationMessage] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [schedule, setSchedule] = useState<WeeklySchedule | null>(null);
     const [services, setServices] = useState<Service[]>([]); // Services list
@@ -73,6 +74,7 @@ export const Home: React.FC = () => {
 
             const settings = await getAdminSettings();
             setVacationMode(settings.vacationMode);
+            if (settings.vacationMode) setShowVacationMessage(true);
 
             const sched = await getScheduleSettings();
             setSchedule(sched);
@@ -304,13 +306,23 @@ export const Home: React.FC = () => {
                 <div className="flex justify-between items-end mb-10 px-2">
                     <h2 className="text-5xl font-black text-white tracking-tighter">THE <br /> TEAM</h2>
                     <div className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-emerald-400 font-mono text-sm animate-spin-slow">
-                        03
+                        <Scissors className="w-5 h-5" />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {barbers.map(barber => (
-                        <BarberCard key={barber.id} barber={barber} onClick={setSelectedBarber} />
+                        <BarberCard
+                            key={barber.id}
+                            barber={barber}
+                            onClick={(b) => {
+                                if (vacationMode) {
+                                    setShowVacationMessage(true);
+                                } else {
+                                    setSelectedBarber(b);
+                                }
+                            }}
+                        />
                     ))}
                 </div>
             </section>
@@ -565,32 +577,32 @@ export const Home: React.FC = () => {
             {/* ... Rest of components ... */}
 
 
-            {/* Admin Shortcut - ALWAYS VISIBLE BUTTON */}
-            <button
-                onClick={() => navigate('/admin')}
-                className="fixed bottom-6 left-6 z-50 bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg hover:bg-white/20 transition-all opacity-50 hover:opacity-100"
-                title="ניהול"
-            >
-                <Settings className="w-6 h-6 text-emerald-500" />
-            </button>
+            {/* Admin Shortcut - Only visible if authenticated */}
+            {isAdmin && (
+                <button
+                    onClick={() => navigate('/admin')}
+                    className="fixed bottom-6 left-6 z-50 bg-white/10 backdrop-blur-md p-3 rounded-full border border-white/10 shadow-lg hover:bg-white/20 transition-all opacity-50 hover:opacity-100"
+                    title="ניהול"
+                >
+                    <Settings className="w-6 h-6 text-emerald-500" />
+                </button>
+            )}
 
             {/* Vacation Mode Overlay */}
-            {vacationMode && (
-                <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 text-center">
+            {vacationMode && showVacationMessage && (
+                <div className="fixed inset-0 z-[60] bg-black/90 backdrop-blur-md flex items-center justify-center p-6 text-center animate-fade-in">
                     <div className="max-w-md">
                         <div className="w-24 h-24 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-6">
                             <Sun className="w-12 h-12 text-orange-500 animate-pulse-glow" />
                         </div>
                         <h2 className="text-3xl font-black text-white mb-2">אנחנו בחופשה!</h2>
                         <p className="text-gray-400 text-lg mb-8">המספרה סגורה כרגע לקביעת תורים. נחזור לפעילות בקרוב.</p>
-                        {isAdmin && (
-                            <button
-                                onClick={() => navigate('/admin')}
-                                className="bg-white/10 px-6 py-3 rounded-xl font-bold hover:bg-white/20 transition-all"
-                            >
-                                כניסה לניהול
-                            </button>
-                        )}
+                        <button
+                            onClick={() => setShowVacationMessage(false)}
+                            className="bg-white/10 px-8 py-3 rounded-xl font-bold hover:bg-white/20 transition-all text-white border border-white/10"
+                        >
+                            אישור
+                        </button>
                     </div>
                 </div>
             )}

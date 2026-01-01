@@ -30,19 +30,31 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, cartCount }) => {
         }
     };
 
+    const [adminPassword, setAdminPassword] = React.useState('1234');
+
+    React.useEffect(() => {
+        // Dynamic import to avoid circular dependency issues if any, or just direct import
+        import('../../services/settings').then(mod => {
+            mod.getAdminSettings().then(settings => {
+                if (settings.adminPassword) {
+                    setAdminPassword(settings.adminPassword);
+                }
+            });
+        });
+    }, []);
+
+    const [error, setError] = React.useState('');
+
     const handlePinSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (pin === '1234') {
+        if (pin === adminPassword) {
             setShowPinModal(false);
             setPin('');
-            // Use window.location as fallback or assume onNavigate handles routing if it supports it, 
-            // but Navbar props say onNavigate is (page: string) => void. 
-            // Better to use useNavigate hook from react-router-dom directly if possible.
-            // Since Navbar is inside Router context (in Layout), we can use useNavigate.
-            // Since Navbar is inside Router context (in Layout), we can use useNavigate.
+            setError('');
+            localStorage.setItem('sapar_admin_auth', 'true');
             navigate('/admin');
         } else {
-            alert('קוד שגוי');
+            setError('קוד שגוי, נסה שנית');
             setPin('');
         }
     };
@@ -79,8 +91,9 @@ export const Navbar: React.FC<NavbarProps> = ({ onNavigate, cartCount }) => {
                                 placeholder="****"
                                 autoFocus
                             />
+                            {error && <p className="text-red-500 text-sm text-center font-bold animate-pulse">{error}</p>}
                             <button type="submit" className="w-full bg-emerald-500 text-black font-bold py-3 rounded-xl hover:bg-emerald-400 transition-colors">
-                                כניסה
+                                אישור
                             </button>
                         </form>
                     </div>
