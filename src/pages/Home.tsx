@@ -276,10 +276,10 @@ export const Home: React.FC = () => {
                         </button>
 
                         <div className="flex gap-3 justify-center sm:justify-start">
-                            <a href="https://instagram.com" target="_blank" rel="noreferrer" className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-emerald-500 hover:text-black hover:border-transparent transition-all cursor-pointer">
+                            <a href="https://www.instagram.com/barber_haemek/" target="_blank" rel="noreferrer" className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-emerald-500 hover:text-black hover:border-transparent transition-all cursor-pointer">
                                 <Instagram className="w-5 h-5" />
                             </a>
-                            <a href="https://tiktok.com" target="_blank" rel="noreferrer" className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-emerald-500 hover:text-black hover:border-transparent transition-all cursor-pointer">
+                            <a href="https://www.tiktok.com/@barber_haemek" target="_blank" rel="noreferrer" className="w-12 h-12 rounded-full border border-white/20 flex items-center justify-center text-white hover:bg-emerald-500 hover:text-black hover:border-transparent transition-all cursor-pointer">
                                 <TikTokIcon className="w-5 h-5" />
                             </a>
                         </div>

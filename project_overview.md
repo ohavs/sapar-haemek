@@ -25,4 +25,5 @@ Convert the existing HTML prototype of "Sapar Haemek" into a high-performance, i
     - Online courses (Mock)
     - Dynamic Barber profiles
 - **Performance**: Optimized for mobile, offline capabilities via Service Worker.
+- **Social & Branding**: Integrated Instagram/TikTok and branded favicon/title.
 - **Admin Dashboard**: Comprehensive management interface for schedule, services, barbers, and appointments.

@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.2.0] - 2026-01-11
+### Added
+- **Social Media Integration**: Added Instagram and TikTok links to Home Hero section.
+
+### Changed
+- **Admin Panel Layout Overhaul**:
+    - **Full Width Layout**: Removed `max-w-3xl` restriction from all tabs (Schedule, Services, Appointments, Products, Gallery, Settings) for better screen real estate usage.
+    - **Grid Layout**: "Working Hours" and "Breaks" are now displayed side-by-side on desktop (2-column grid).
+    - **Barber List**: Added horizontal padding preventing action icon clipping.
+    - **Gallery Grid**: Increased image density (columns) for a more compact view.
+- **Marquee Component**:
+    - **Infinite Loop**: Implemented a robust, gap-free infinite loop by removing `min-width` constraints and significantly increasing content duplication.
+    - **Animation**: Tuned speed to 60s for better readability.
+- **Branding**:
+    - Updated Browser Tab Title to "ספר העמק".
+    - Updated Favicon to `logo.png`.
+
+### Fixed
+- **Admin Structure**: Fixed a critical syntax error (extra `</div>`) that caused "Services" content to leak into the "Schedule" tab.
+- **UI Glitches**: Fixed clipping of "Edit" and "Delete" icons on Admin barber cards.
+
+
 ## [1.1.0] - 2026-01-01
 ### Added
 - **Gallery System Enhanced**:

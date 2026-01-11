@@ -11,7 +11,7 @@ export const smoothScrollToTop = (duration: number = 1000) => {
 
     const scroll = () => {
         const now = 'now' in window.performance ? performance.now() : new Date().getTime();
-        const time = Math.min(1, ((now - startTime) / duration));
+
         const timeFunction = easeInOutQuad(now - startTime, start, -start, duration);
 
         window.scrollTo(0, Math.ceil(timeFunction));
