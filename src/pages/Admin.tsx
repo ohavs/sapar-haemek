@@ -144,6 +144,8 @@ export const Admin: React.FC = () => {
 
     const [settings, setSettings] = useState<AdminSettings>({ adminPassword: '123', vacationMode: false });
     const [showPasswordChange, setShowPasswordChange] = useState(false);
+    const [isWeeklyHoursOpen, setIsWeeklyHoursOpen] = useState(false);
+    const [isBreaksOpen, setIsBreaksOpen] = useState(false);
     const [newPassword, setNewPassword] = useState('');
 
     // Blocked Dates State
@@ -161,6 +163,15 @@ export const Admin: React.FC = () => {
     const [selectedDate, setSelectedDate] = useState<Date | null>(null);
     const [isBlocking, setIsBlocking] = useState(false);
     const [blockBarberId, setBlockBarberId] = useState<string>('all');
+
+    // Sync "Add Break" barber with global selected barber
+    useEffect(() => {
+        if (selectedBarber) {
+            setNewBreakBarberId(selectedBarber.id.toString());
+        } else {
+            setNewBreakBarberId('all');
+        }
+    }, [selectedBarber]);
 
     // Live Data
     const [appointments, setAppointments] = useState<Booking[]>([]);
@@ -659,281 +670,303 @@ export const Admin: React.FC = () => {
 
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start h-full">
                             {/* Working Hours */}
-                            <div className="glass-panel p-6 rounded-3xl space-y-6 relative z-10">
-                                <h3 className="text-xl font-bold flex items-center gap-2">
-                                    <Clock className="w-5 h-5 text-emerald-400" />
-                                    שעות שבועיות
-                                </h3>
-                                <div className="space-y-3">
-                                    {[0, 1, 2, 3, 4, 5].map((dayIndex) => { // 0=Sunday
-                                        const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
-                                        const dayName = days[dayIndex];
-                                        const dayConfig = schedule[dayIndex] || { start: '10:00', end: '20:00' }; // Default fallback
-                                        const isOpen = workingDays.includes(dayIndex);
-
-                                        return (
-                                            <div key={dayIndex} className={`flex flex-col xl:flex-row xl:items-center justify-between p-4 rounded-2xl border transition-all ${isOpen ? 'bg-white/5 border-white/5' : 'bg-white/2 border-transparent opacity-50'}`}>
-                                                <div className="flex items-center justify-between mb-2 xl:mb-0 xl:gap-2 w-full xl:w-auto">
-                                                    <span className="font-bold text-sm min-w-[40px] text-right">{dayName}</span>
-                                                    <button
-                                                        onClick={() => toggleDay(dayIndex)}
-                                                        className={`w-10 h-6 rounded-full relative transition-colors ${isOpen ? 'bg-emerald-500' : 'bg-white/10'}`}
-                                                    >
-                                                        <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-md ${isOpen ? 'left-1' : 'left-5'}`}></div>
-                                                    </button>
-                                                </div>
-
-                                                <div className="flex items-center gap-2 justify-end w-full xl:w-auto">
-                                                    {isOpen ? (
-                                                        <div className="flex gap-2 items-center w-full xl:w-auto">
-                                                            <div>
-                                                                <TimePicker time={dayConfig.start} onChange={(t) => updateDayTime(dayIndex, 'start', t)} />
-                                                            </div>
-                                                            <span className="text-gray-500">-</span>
-                                                            <div>
-                                                                <TimePicker time={dayConfig.end} onChange={(t) => updateDayTime(dayIndex, 'end', t)} />
-                                                            </div>
-                                                        </div>
-                                                    ) : (
-                                                        <span className="text-gray-500 font-mono text-xs uppercase">Closed</span>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                            </div>
-
-                            {/* Breaks & Exceptions */}
-                            <div className="glass-panel p-6 rounded-3xl space-y-6 relative z-20">
-                                <h3 className="text-xl font-bold flex items-center gap-2">
-                                    <AlertCircle className="w-5 h-5 text-emerald-400" />
-                                    חריגות והפסקות
-                                </h3>
-
-                                <div className="space-y-6">
-                                    {/* Breaks List */}
-                                    <div className="border-b border-white/10 pb-6">
-                                        <label className="text-gray-400 text-sm mb-4 block font-bold">הפסקות קבועות</label>
-
-                                        {/* List */}
-                                        <div className="space-y-2 mb-4">
-                                            {breaks.map((brk, idx) => (
-                                                <div key={idx} className="flex justify-between items-center bg-white/5 p-3 rounded-xl animate-fade-in">
-                                                    <div className="flex items-center gap-3">
-                                                        <div className="font-mono text-sm">{brk.start} - {brk.end}</div>
-                                                        <div className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                                                            {brk.barberId ? (barbers.find(b => b.id.toString() === brk.barberId)?.name || 'לא ידוע') : 'כל המספרה'}
-                                                        </div>
-                                                    </div>
-                                                    <button onClick={() => removeBreak(idx)} className="text-red-400 p-1 hover:bg-white/10 rounded-lg">
-                                                        <Trash2 className="w-4 h-4" />
-                                                    </button>
-                                                </div>
-                                            ))}
-                                        </div>
-
-                                        {/* Add Input */}
-                                        <div className="flex flex-col md:flex-row gap-2 items-end md:items-center">
-                                            <div className="flex gap-4 items-center w-full md:w-auto">
-                                                <div>
-                                                    <span className="text-xs text-gray-500 mb-1 block">משעה</span>
-                                                    <TimePicker time={newBreakStart} onChange={setNewBreakStart} />
-                                                </div>
-                                                <div>
-                                                    <span className="text-xs text-gray-500 mb-1 block">עד שעה</span>
-                                                    <TimePicker time={newBreakEnd} onChange={setNewBreakEnd} />
-                                                </div>
-                                            </div>
-
-                                            <div className="w-full md:w-40 ml-auto md:ml-0" dir="rtl">
-                                                <CustomSelect
-                                                    value={newBreakBarberId}
-                                                    onChange={setNewBreakBarberId}
-                                                    options={[
-                                                        { value: 'all', label: 'כל המספרה' },
-                                                        ...barbers.map(b => ({ value: b.id.toString(), label: b.name }))
-                                                    ]}
-                                                    placeholder="בחר ספר"
-                                                />
-                                            </div>
-
-                                            <button
-                                                onClick={addBreak}
-                                                className="bg-emerald-500/10 text-emerald-400 p-3 rounded-xl hover:bg-emerald-500/20 w-full md:w-auto flex justify-center transition-colors"
-                                            >
-                                                <Plus className="w-5 h-5" />
-                                            </button>
-                                        </div>
+                            <div className="glass-panel p-6 rounded-3xl relative z-10 transition-all">
+                                <button
+                                    onClick={() => setIsWeeklyHoursOpen(!isWeeklyHoursOpen)}
+                                    className="w-full flex items-center justify-between text-xl font-bold group"
+                                >
+                                    <div className="flex items-center gap-2 group-hover:text-emerald-400 transition-colors">
+                                        <Clock className="w-5 h-5 text-emerald-400" />
+                                        שעות שבועיות
                                     </div>
-
-                                    {/* Blocked Dates List */}
-                                    <div className="border-b border-white/10 pb-6">
-                                        <label className="text-gray-400 text-sm mb-4 block font-bold">תאריכים חסומים</label>
-                                        <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
-                                            {blockedDates.length === 0 ? (
-                                                <p className="text-gray-500 text-sm">אין תאריכים חסומים</p>
-                                            ) : (
-                                                blockedDates.map(date => {
-                                                    const barberName = date.barberId
-                                                        ? barbers.find(b => b.id.toString() === date.barberId?.toString())?.name || 'לא ידוע'
-                                                        : 'כל המספרה';
-
-                                                    return (
-                                                        <div key={date.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl">
-                                                            <div className="flex flex-col">
-                                                                <span className="font-mono text-sm">
-                                                                    {date.date.toLocaleDateString('he-IL')}
-                                                                    {date.start && date.end ? (
-                                                                        <span className="text-emerald-400 text-xs mr-2">
-                                                                            {date.start} - {date.end}
-                                                                        </span>
-                                                                    ) : <span className="text-gray-500 text-xs mr-2">(כל היום)</span>}
-                                                                </span>
-                                                                <span className="text-xs text-gray-400">{barberName}</span>
-                                                            </div>
-                                                            <button
-                                                                onClick={() => {
-                                                                    if (!date.id) return;
-                                                                    setModalConfig({
-                                                                        isOpen: true,
-                                                                        title: 'ביטול חסימה',
-                                                                        text: 'האם אתה בטוח שברצונך לבטל חסימה זו?',
-                                                                        type: 'warning',
-                                                                        showConfirmButton: true,
-                                                                        onConfirm: async () => {
-                                                                            if (!date.id) return; // TS check
-                                                                            setBlockedDates(prev => prev.filter(d => d.id !== date.id)); // Optimistic
-                                                                            await deleteBlockedDate(date.id);
-                                                                            await loadBlockedDates(); // Sync
-                                                                        }
-                                                                    });
-                                                                }}
-                                                                className="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </div>
-                                                    );
-                                                })
-                                            )}
-                                        </div>
+                                    <div className={`transition-transform duration-300 ${isWeeklyHoursOpen ? 'rotate-180' : ''}`}>
+                                        <ChevronDown className="w-5 h-5 text-gray-500 group-hover:text-emerald-400" />
                                     </div>
+                                </button>
 
-                                    {/* Block Date */}
-                                    <div>
-                                        <label className="text-gray-400 text-sm mb-4 block font-bold">חסום תאריך חדש</label>
+                                {isWeeklyHoursOpen && (
+                                    <div className="space-y-3 mt-6 animate-fade-in">
+                                        {[0, 1, 2, 3, 4, 5].map((dayIndex) => { // 0=Sunday
+                                            const days = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי'];
+                                            const dayName = days[dayIndex];
+                                            const dayConfig = schedule[dayIndex] || { start: '10:00', end: '20:00' }; // Default fallback
+                                            const isOpen = workingDays.includes(dayIndex);
 
-                                        <CustomDatePicker
-                                            selectedDate={selectedDate || new Date()}
-                                            onChange={setSelectedDate}
-                                            excludeDates={blockedDates
-                                                .filter(d => blockBarberId === 'all' ? !d.barberId : (d.barberId?.toString() === blockBarberId || !d.barberId))
-                                                .map(d => d.date)
-                                            }
-                                            workingDays={workingDays}
-                                        />
-
-                                        <div className="mt-6 flex flex-col gap-4">
-
-                                            {/* Blocking Options Row */}
-                                            <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-white/5 p-4 rounded-xl">
-
-                                                {/* Left: Toggles & Times */}
-                                                <div className="flex flex-col gap-2 w-full md:w-auto">
-                                                    <div className="flex items-center gap-3">
+                                            return (
+                                                <div key={dayIndex} className={`flex flex-col xl:flex-row xl:items-center justify-between p-4 rounded-2xl border transition-all ${isOpen ? 'bg-white/5 border-white/5' : 'bg-white/2 border-transparent opacity-50'}`}>
+                                                    <div className="flex items-center justify-between mb-2 xl:mb-0 xl:gap-2 w-full xl:w-auto">
+                                                        <span className="font-bold text-sm min-w-[40px] text-right">{dayName}</span>
                                                         <button
-                                                            onClick={() => setIsFullDayBlock(!isFullDayBlock)}
-                                                            className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg transition-colors border ${isFullDayBlock ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-transparent text-gray-500 border-white/10'}`}
+                                                            onClick={() => toggleDay(dayIndex)}
+                                                            className={`w-10 h-6 rounded-full relative transition-colors ${isOpen ? 'bg-emerald-500' : 'bg-white/10'}`}
                                                         >
-                                                            <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isFullDayBlock ? 'border-emerald-400' : 'border-gray-500'}`}>
-                                                                {isFullDayBlock && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
-                                                            </div>
-                                                            חסימת יום מלא
+                                                            <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-md ${isOpen ? 'left-1' : 'left-5'}`}></div>
                                                         </button>
                                                     </div>
 
-                                                    {!isFullDayBlock && (
-                                                        <div className="flex items-center gap-3 animate-fade-in" dir="ltr">
-                                                            <div className="flex flex-col gap-1">
-                                                                <span className="text-[10px] text-gray-500 text-center font-bold">מ...</span>
-                                                                <TimePicker time={blockStartTime} onChange={setBlockStartTime} />
+                                                    <div className="flex items-center gap-2 justify-end w-full xl:w-auto">
+                                                        {isOpen ? (
+                                                            <div className="flex flex-col sm:flex-row gap-2 items-center w-full xl:w-auto">
+                                                                <div>
+                                                                    <TimePicker time={dayConfig.start} onChange={(t) => updateDayTime(dayIndex, 'start', t)} />
+                                                                </div>
+                                                                <span className="text-gray-500 hidden sm:inline">-</span>
+                                                                <span className="text-gray-500 text-xs sm:hidden">עד</span>
+                                                                <div>
+                                                                    <TimePicker time={dayConfig.end} onChange={(t) => updateDayTime(dayIndex, 'end', t)} />
+                                                                </div>
                                                             </div>
-                                                            <span className="text-gray-500 pt-5">-</span>
-                                                            <div className="flex flex-col gap-1">
-                                                                <span className="text-[10px] text-gray-500 text-center font-bold">עד...</span>
-                                                                <TimePicker time={blockEndTime} onChange={setBlockEndTime} />
+                                                        ) : (
+                                                            <span className="text-gray-500 font-mono text-xs uppercase">Closed</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Breaks & Exceptions */}
+                            <div className="glass-panel p-6 rounded-3xl relative z-20 transition-all">
+                                <button
+                                    onClick={() => setIsBreaksOpen(!isBreaksOpen)}
+                                    className="w-full flex items-center justify-between text-xl font-bold group"
+                                >
+                                    <div className="flex items-center gap-2 group-hover:text-emerald-400 transition-colors">
+                                        <AlertCircle className="w-5 h-5 text-emerald-400" />
+                                        חריגות והפסקות
+                                    </div>
+                                    <div className={`transition-transform duration-300 ${isBreaksOpen ? 'rotate-180' : ''}`}>
+                                        <ChevronDown className="w-5 h-5 text-gray-500 group-hover:text-emerald-400" />
+                                    </div>
+                                </button>
+
+                                {isBreaksOpen && (
+                                    <div className="space-y-6 mt-6 animate-fade-in">
+                                        {/* Breaks List */}
+                                        <div className="border-b border-white/10 pb-6">
+                                            <label className="text-gray-400 text-sm mb-4 block font-bold">הפסקות קבועות</label>
+
+                                            {/* List */}
+                                            <div className="space-y-2 mb-4">
+                                                {breaks.map((brk, idx) => (
+                                                    <div key={idx} className="flex justify-between items-center bg-white/5 p-3 rounded-xl animate-fade-in">
+                                                        <div className="flex items-center gap-3">
+                                                            <div className="font-mono text-sm">{brk.start} - {brk.end}</div>
+                                                            <div className="text-xs px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                                                                {brk.barberId ? (barbers.find(b => b.id.toString() === brk.barberId)?.name || 'לא ידוע') : 'כל המספרה'}
                                                             </div>
                                                         </div>
-                                                    )}
+                                                        <button onClick={() => removeBreak(idx)} className="text-red-400 p-1 hover:bg-white/10 rounded-lg">
+                                                            <Trash2 className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            {/* Add Input */}
+                                            <div className="flex flex-col md:flex-row gap-2 items-end md:items-center">
+                                                <div className="flex flex-col sm:flex-row gap-4 items-center w-full md:w-auto">
+                                                    <div>
+                                                        <span className="text-xs text-gray-500 mb-1 block">משעה</span>
+                                                        <TimePicker time={newBreakStart} onChange={setNewBreakStart} />
+                                                    </div>
+                                                    <div>
+                                                        <span className="text-xs text-gray-500 mb-1 block">עד שעה</span>
+                                                        <TimePicker time={newBreakEnd} onChange={setNewBreakEnd} />
+                                                    </div>
                                                 </div>
 
-                                                {/* Right: Barber & Action */}
-                                                <div className="flex gap-4 items-end w-full md:w-auto">
-                                                    <div className="w-full md:w-48">
-                                                        <label className="text-xs text-gray-500 mb-1 block">ספר</label>
-                                                        <CustomSelect
-                                                            value={blockBarberId}
-                                                            onChange={setBlockBarberId}
-                                                            options={[
-                                                                { value: 'all', label: 'כל המספרה' },
-                                                                ...barbers.map(b => ({ value: b.id.toString(), label: b.name }))
-                                                            ]}
-                                                            placeholder="בחר למי לחסום"
-                                                        />
+                                                <div className="w-full md:w-40 ml-auto md:ml-0" dir="rtl">
+                                                    <CustomSelect
+                                                        value={newBreakBarberId}
+                                                        onChange={setNewBreakBarberId}
+                                                        options={[
+                                                            { value: 'all', label: 'כל המספרה' },
+                                                            ...barbers.map(b => ({ value: b.id.toString(), label: b.name }))
+                                                        ]}
+                                                        placeholder="בחר ספר"
+                                                    />
+                                                </div>
+
+                                                <button
+                                                    onClick={addBreak}
+                                                    className="bg-emerald-500/10 text-emerald-400 p-3 rounded-xl hover:bg-emerald-500/20 w-full md:w-auto flex justify-center transition-colors"
+                                                >
+                                                    <Plus className="w-5 h-5" />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Blocked Dates List */}
+                                        <div className="border-b border-white/10 pb-6">
+                                            <label className="text-gray-400 text-sm mb-4 block font-bold">תאריכים חסומים</label>
+                                            <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar">
+                                                {blockedDates.length === 0 ? (
+                                                    <p className="text-gray-500 text-sm">אין תאריכים חסומים</p>
+                                                ) : (
+                                                    blockedDates.map(date => {
+                                                        const barberName = date.barberId
+                                                            ? barbers.find(b => b.id.toString() === date.barberId?.toString())?.name || 'לא ידוע'
+                                                            : 'כל המספרה';
+
+                                                        return (
+                                                            <div key={date.id} className="flex items-center justify-between bg-white/5 p-3 rounded-xl">
+                                                                <div className="flex flex-col">
+                                                                    <span className="font-mono text-sm">
+                                                                        {date.date.toLocaleDateString('he-IL')}
+                                                                        {date.start && date.end ? (
+                                                                            <span className="text-emerald-400 text-xs mr-2">
+                                                                                {date.start} - {date.end}
+                                                                            </span>
+                                                                        ) : <span className="text-gray-500 text-xs mr-2">(כל היום)</span>}
+                                                                    </span>
+                                                                    <span className="text-xs text-gray-400">{barberName}</span>
+                                                                </div>
+                                                                <button
+                                                                    onClick={() => {
+                                                                        if (!date.id) return;
+                                                                        setModalConfig({
+                                                                            isOpen: true,
+                                                                            title: 'ביטול חסימה',
+                                                                            text: 'האם אתה בטוח שברצונך לבטל חסימה זו?',
+                                                                            type: 'warning',
+                                                                            showConfirmButton: true,
+                                                                            onConfirm: async () => {
+                                                                                if (!date.id) return; // TS check
+                                                                                setBlockedDates(prev => prev.filter(d => d.id !== date.id)); // Optimistic
+                                                                                await deleteBlockedDate(date.id);
+                                                                                await loadBlockedDates(); // Sync
+                                                                            }
+                                                                        });
+                                                                    }}
+                                                                    className="p-2 bg-red-500/10 text-red-400 rounded-lg hover:bg-red-500/20 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Block Date */}
+                                        <div>
+                                            <label className="text-gray-400 text-sm mb-4 block font-bold">חסום תאריך חדש</label>
+
+                                            <CustomDatePicker
+                                                selectedDate={selectedDate || new Date()}
+                                                onChange={setSelectedDate}
+                                                excludeDates={blockedDates
+                                                    .filter(d => blockBarberId === 'all' ? !d.barberId : (d.barberId?.toString() === blockBarberId || !d.barberId))
+                                                    .map(d => d.date)
+                                                }
+                                                workingDays={workingDays}
+                                            />
+
+                                            <div className="mt-6 flex flex-col gap-4">
+
+                                                {/* Blocking Options Row */}
+                                                <div className="flex flex-col md:flex-row gap-4 items-end justify-between bg-white/5 p-4 rounded-xl">
+
+                                                    {/* Left: Toggles & Times */}
+                                                    <div className="flex flex-col gap-2 w-full md:w-auto">
+                                                        <div className="flex items-center gap-3">
+                                                            <button
+                                                                onClick={() => setIsFullDayBlock(!isFullDayBlock)}
+                                                                className={`flex items-center gap-2 text-sm px-3 py-1.5 rounded-lg transition-colors border ${isFullDayBlock ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'bg-transparent text-gray-500 border-white/10'}`}
+                                                            >
+                                                                <div className={`w-4 h-4 rounded-full border flex items-center justify-center ${isFullDayBlock ? 'border-emerald-400' : 'border-gray-500'}`}>
+                                                                    {isFullDayBlock && <div className="w-2 h-2 rounded-full bg-emerald-400" />}
+                                                                </div>
+                                                                חסימת יום מלא
+                                                            </button>
+                                                        </div>
+
+                                                        {!isFullDayBlock && (
+                                                            <div className="flex items-center gap-3 animate-fade-in" dir="ltr">
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-[10px] text-gray-500 text-center font-bold">מ...</span>
+                                                                    <TimePicker time={blockStartTime} onChange={setBlockStartTime} />
+                                                                </div>
+                                                                <span className="text-gray-500 pt-5">-</span>
+                                                                <div className="flex flex-col gap-1">
+                                                                    <span className="text-[10px] text-gray-500 text-center font-bold">עד...</span>
+                                                                    <TimePicker time={blockEndTime} onChange={setBlockEndTime} />
+                                                                </div>
+                                                            </div>
+                                                        )}
                                                     </div>
 
-                                                    <button
-                                                        disabled={!selectedDate || isBlocking}
-                                                        onClick={async () => {
-                                                            if (!selectedDate) return;
-                                                            setIsBlocking(true);
-                                                            try {
-                                                                const bId = blockBarberId === 'all' ? undefined : parseInt(blockBarberId);
-                                                                const start = isFullDayBlock ? undefined : blockStartTime;
-                                                                const end = isFullDayBlock ? undefined : blockEndTime;
+                                                    {/* Right: Barber & Action */}
+                                                    <div className="flex gap-4 items-end w-full md:w-auto">
+                                                        <div className="w-full md:w-48">
+                                                            <label className="text-xs text-gray-500 mb-1 block">ספר</label>
+                                                            <CustomSelect
+                                                                value={blockBarberId}
+                                                                onChange={setBlockBarberId}
+                                                                options={[
+                                                                    { value: 'all', label: 'כל המספרה' },
+                                                                    ...barbers.map(b => ({ value: b.id.toString(), label: b.name }))
+                                                                ]}
+                                                                placeholder="בחר למי לחסום"
+                                                            />
+                                                        </div>
 
-                                                                // Optimistic add (with temp ID)
-                                                                const tempBlock: BlockedDate = {
-                                                                    id: 'temp-' + Date.now(),
-                                                                    date: selectedDate,
-                                                                    barberId: bId,
-                                                                    reason: 'Blocked by Admin',
-                                                                    start,
-                                                                    end
-                                                                };
-                                                                setBlockedDates(prev => [...prev, tempBlock]);
+                                                        <button
+                                                            disabled={!selectedDate || isBlocking}
+                                                            onClick={async () => {
+                                                                if (!selectedDate) return;
+                                                                setIsBlocking(true);
+                                                                try {
+                                                                    const bId = blockBarberId === 'all' ? undefined : parseInt(blockBarberId);
+                                                                    const start = isFullDayBlock ? undefined : blockStartTime;
+                                                                    const end = isFullDayBlock ? undefined : blockEndTime;
 
-                                                                await blockDateService(selectedDate, 'Blocked by Admin', bId, start, end);
-                                                                await loadBlockedDates(); // Re-fetch for real ID
-                                                            } catch (e) {
-                                                                // Revert on fail
-                                                                await loadBlockedDates();
-                                                            } finally {
-                                                                setIsBlocking(false);
-                                                                setSelectedDate(null);
-                                                            }
-                                                        }}
-                                                        className={`
+                                                                    // Optimistic add (with temp ID)
+                                                                    const tempBlock: BlockedDate = {
+                                                                        id: 'temp-' + Date.now(),
+                                                                        date: selectedDate,
+                                                                        barberId: bId,
+                                                                        reason: 'Blocked by Admin',
+                                                                        start,
+                                                                        end
+                                                                    };
+                                                                    setBlockedDates(prev => [...prev, tempBlock]);
+
+                                                                    await blockDateService(selectedDate, 'Blocked by Admin', bId, start, end);
+                                                                    await loadBlockedDates(); // Re-fetch for real ID
+                                                                } catch (e) {
+                                                                    // Revert on fail
+                                                                    await loadBlockedDates();
+                                                                } finally {
+                                                                    setIsBlocking(false);
+                                                                    setSelectedDate(null);
+                                                                }
+                                                            }}
+                                                            className={`
                                                         px-6 py-3 rounded-xl font-bold transition-all flex items-center justify-center gap-2
                                                         ${!selectedDate || isBlocking
-                                                                ? 'bg-white/5 text-gray-500 cursor-not-allowed'
-                                                                : 'bg-red-500 text-white shadow-lg shadow-red-500/20 hover:bg-red-600'
-                                                            }
+                                                                    ? 'bg-white/5 text-gray-500 cursor-not-allowed'
+                                                                    : 'bg-red-500 text-white shadow-lg shadow-red-500/20 hover:bg-red-600'
+                                                                }
                                                     `}
-                                                    >
-                                                        {isBlocking ? (
-                                                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                                                        ) : (
-                                                            <Trash2 className="w-5 h-5" />
-                                                        )}
-                                                        <span>{isBlocking ? 'חוסם...' : 'חסום תאריך'}</span>
-                                                    </button>
+                                                        >
+                                                            {isBlocking ? (
+                                                                <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="w-5 h-5" />
+                                                            )}
+                                                            <span>{isBlocking ? 'חוסם...' : 'חסום תאריך'}</span>
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
+                                )}
                             </div>
                         </div>
                     </div>

@@ -22,6 +22,19 @@
 - **UI Glitches**: Fixed clipping of "Edit" and "Delete" icons on Admin barber cards.
 
 
+## [1.2.1] - 2026-01-11
+### Added
+- **UI UX Enhancements**:
+    - **Modal Close Button**: Added a highly visible "X" button to the main booking sheet (Home) and generic modals for easier dismissal.
+    - **Admin - Collapsible Sections**: "Weekly Hours" and "Breaks & Exceptions" sections in Admin > Schedule are now collapsible and default to collapsed for a cleaner view.
+    - **Smart Barber Link**: "Add Break" in Admin now defaults to the currently selected barber from the main filter.
+
+### Changed
+- **Marquee Improved**:
+    - Replaced CSS animation with robust inline-style logic to force a seamless, gap-free infinite loop (0% -> -50%).
+    - Increased scroll speed to 10s for a faster, more dynamic look.
+
+
 ## [1.1.0] - 2026-01-01
 ### Added
 - **Gallery System Enhanced**:

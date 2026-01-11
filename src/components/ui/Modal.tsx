@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check, AlertCircle } from 'lucide-react';
+import { Check, AlertCircle, X } from 'lucide-react';
 
 interface ModalProps {
     isOpen: boolean;
@@ -46,6 +46,13 @@ export const Modal: React.FC<ModalProps> = ({
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 animate-fade-in">
             <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose}></div>
             <div className="relative glass-panel bg-[#1a1a1a] p-8 rounded-3xl max-w-sm w-full text-center border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] transform transition-all scale-100">
+                <button
+                    onClick={onClose}
+                    className="absolute top-4 left-4 p-2 text-white/30 hover:text-white transition-colors rounded-full hover:bg-white/10"
+                >
+                    <X className="w-5 h-5" />
+                </button>
+
                 <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${getBgColor()}`}>
                     {getIcon()}
                 </div>
